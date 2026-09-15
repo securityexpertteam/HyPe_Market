@@ -242,6 +242,12 @@ textarea { min-height: 112px; resize: vertical; }
 }
 .wide { width: 100%; }
 .form-message { min-height: 22px; margin: 0; color: var(--signal); font-weight: 800; }
+.phone-input {
+  display: grid;
+  grid-template-columns: minmax(145px, 0.85fr) minmax(0, 1.15fr);
+  gap: 8px;
+}
+.phone-input select, .phone-input input { min-width: 0; }
 
 .toast {
   position: fixed;
@@ -440,6 +446,27 @@ h2 { margin: 0; font-size: clamp(26px, 4vw, 42px); }
   background: #fff;
 }
 .seller-form textarea, .seller-form button { grid-column: 1 / -1; }
+.image-upload {
+  display: grid;
+  gap: 8px;
+  align-content: center;
+  min-height: 92px;
+  padding: 12px;
+  border: 1px dashed var(--brand);
+  border-radius: 8px;
+  background: #f0faf8;
+  color: var(--brand-dark);
+  font-weight: 850;
+}
+.image-upload input { min-height: auto; padding: 0; border: 0; background: transparent; }
+.image-upload small { color: var(--muted); font-weight: 650; }
+.image-preview {
+  width: 100%;
+  max-height: 180px;
+  grid-column: 1 / -1;
+  border-radius: 8px;
+  object-fit: cover;
+}
 
 .metrics {
   display: grid;
@@ -461,12 +488,29 @@ h2 { margin: 0; font-size: clamp(26px, 4vw, 42px); }
   display: grid;
   gap: 12px;
 }
+.order-notification {
+  margin: 0 0 14px;
+  padding: 14px 16px;
+  border: 1px solid #9ad8c9;
+  border-radius: 8px;
+  background: #eafaf5;
+  color: #12604f;
+  font-weight: 850;
+}
 .list article {
   padding: 16px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #fff;
 }
+.order-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+}
+.cancel-order { color: #a12a1f; }
 
 .drawer {
   position: fixed;
@@ -574,6 +618,7 @@ dialog::backdrop { background: rgba(16, 24, 32, 0.5); }
 
 @media (max-width: 640px) {
   .role-picker, .seller-form, .quick-strip, .metrics { grid-template-columns: 1fr; }
+  .phone-input { grid-template-columns: 1fr; }
   .searchbar { grid-template-columns: 1fr; }
   .searchbar select, .searchbar input { border-radius: 8px; border: 1px solid var(--line); }
   .hero { align-items: start; flex-direction: column; }

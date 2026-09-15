@@ -325,6 +325,9 @@ const Header = ({ cart, go }: any) => (
         <Pressable onPress={() => go('auth')}>
           <Text style={styles.nav}>Account</Text>
         </Pressable>
+        <Pressable onPress={() => go('auth')}>
+          <Text style={styles.nav}>Sell</Text>
+        </Pressable>
         <Pressable onPress={() => go('orders')}>
           <Text style={styles.nav}>Orders</Text>
         </Pressable>
@@ -537,9 +540,10 @@ const Seller = ({ products, add, back }: any) => {
         <Text style={styles.muted}>Live products · stock management</Text>
 
         <View style={styles.sellerUploadCard}>
-          <Pressable onPress={pickImage} style={styles.uploadButton}>
-            <Text style={styles.uploadButtonText}>Choose image from device</Text>
-          </Pressable>
+          <Text style={styles.uploadLabel}>Product image</Text>
+          <Button mode="outlined" icon="image-plus" onPress={pickImage} textColor="#4c1d95" style={styles.uploadButton}>
+            Upload from device
+          </Button>
           {imageURL ? <Image source={{ uri: imageURL }} style={styles.uploadPreview} /> : null}
         </View>
 
@@ -1050,6 +1054,12 @@ const styles = StyleSheet.create({
   uploadButtonText: {
     color: '#4c1d95',
     fontWeight: '800',
+  },
+  uploadLabel: {
+    color: '#2f1d3f',
+    fontSize: 15,
+    fontWeight: '800',
+    marginBottom: 8,
   },
   uploadPreview: {
     height: 160,

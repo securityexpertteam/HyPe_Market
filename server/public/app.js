@@ -36,6 +36,7 @@ const state = {
   cart: JSON.parse(localStorage.getItem('hype_cart') || '[]'),
   orders: JSON.parse(localStorage.getItem('hype_orders') || '[]')
 };
+let selectedImageData = '';
 
 const $ = selector => document.querySelector(selector);
 const money = value => new Intl.NumberFormat('en-IN', {
@@ -74,7 +75,7 @@ function showToast(message) {
   window.clearTimeout(showToast.timer);
   showToast.timer = window.setTimeout(() => {
     toast.hidden = true;
-  }, 3200);
+  }, 6000);
 }
 
 function showApp() {
@@ -118,9 +119,14 @@ async function handleAuth(event) {
   event.preventDefault();
   setMessage('');
   const form = new FormData(event.currentTarget);
+  const email = String(form.get('email') || '').trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    setMessage('Enter a valid email address.');
+    return;
+  }
   const selectedRole = form.get('role');
   const payload = {
-    email: form.get('email'),
+    email,
     password: form.get('password')
   };
   if (state.authMode === 'signup') {
@@ -135,8 +141,10 @@ async function handleAuth(event) {
     }
     saveSession(data);
     showApp();
+    showToast(`${state.authMode === 'signup' ? 'Account created' : 'Signed in'} successfully.`);
   } catch (error) {
     setMessage(error.message);
+    showToast(error.message);
   }
 }
 
@@ -146,10 +154,12 @@ async function loadProducts() {
     if (!response.ok) throw new Error('Catalog unavailable');
     state.products = await response.json();
     $('#status').hidden = true;
+    showToast(`${state.products.length} products loaded.`);
   } catch (error) {
     state.products = fallbackProducts;
     $('#status').textContent = 'Using demo products while the API warms up.';
     $('#status').hidden = false;
+    showToast('Catalog unavailable. Showing demo products.');
   }
   updateCategories();
   renderAll();
@@ -218,6 +228,7 @@ function openProduct(product) {
     $('#product-dialog').close();
   });
   $('#product-dialog').showModal();
+  showToast(`${product.name} details opened.`);
 }
 
 function addToCart(product) {
@@ -226,18 +237,23 @@ function addToCart(product) {
   else state.cart.push({ ...product, quantity: 1 });
   saveCart();
   renderCart();
+  showToast(`${product.name} added to cart.`);
 }
 
 function changeQty(id, delta) {
   state.cart = state.cart.map(item => item._id === id ? { ...item, quantity: Math.max(1, item.quantity + delta) } : item);
   saveCart();
   renderCart();
+  const item = state.cart.find(entry => entry._id === id);
+  if (item) showToast(`${item.name} quantity updated to ${item.quantity}.`);
 }
 
 function removeFromCart(id) {
+  const item = state.cart.find(entry => entry._id === id);
   state.cart = state.cart.filter(item => item._id !== id);
   saveCart();
   renderCart();
+  if (item) showToast(`${item.name} removed from cart.`);
 }
 
 function renderCart() {
@@ -284,21 +300,78 @@ async function placeOrder(event) {
   event.preventDefault();
   $('#checkout-message').textContent = '';
   if (!state.cart.length) {
+    try {
+      const storedCart = JSON.parse(localStorage.getItem('hype_cart') || '[]');
+      if (Array.isArray(storedCart) && storedCart.length) {
+        state.cart = storedCart;
+        renderCart();
+      }
+    } catch {
+      state.cart = [];
+    }
+  }
+  if (!state.cart.length) {
     $('#checkout-message').textContent = 'Add at least one product before checkout.';
+    showToast('Your cart is empty. Add a product before checkout.');
     return;
   }
   const form = new FormData(event.currentTarget);
   const checkoutCart = state.cart.map(item => ({ ...item }));
+  const countryCode = String(form.get('countryCode') || '');
+  const phone = String(form.get('phone') || '').replace(/\D/g, '');
+  if (!/^\+[1-9]\d{0,3}$/.test(countryCode) || !/^\d{6,14}$/.test(phone)) {
+    $('#checkout-message').textContent = 'Enter a valid country code and a phone number with 6 to 14 digits.';
+    showToast('Enter a valid country code and phone number.');
+    return;
+  }
+  const mongoId = /^[a-f\d]{24}$/i;
+  const apiItems = state.token ? checkoutCart.filter(item => mongoId.test(item._id)) : [];
+  if (!state.token || apiItems.length !== checkoutCart.length) {
+    $('#checkout-message').textContent = 'Refresh the catalog and sign in before placing an order in the database.';
+    showToast('Refresh the catalog and sign in before checkout.');
+    return;
+  }
+
+  let response;
+  try {
+    response = await fetch('/api/orders', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${state.token}`
+      },
+      body: JSON.stringify({
+        items: apiItems.map(item => ({ productId: item._id, quantity: item.quantity })),
+        delivery: {
+          address: form.get('address'),
+          contact: `${countryCode}${phone}`
+        },
+        paymentResult: 'success'
+      })
+    });
+  } catch {
+    $('#checkout-message').textContent = 'The server is unavailable. Your cart was not changed.';
+    showToast('The server is unavailable. Order was not placed.');
+    return;
+  }
+  const apiOrder = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    $('#checkout-message').textContent = apiOrder.message || 'Order payment could not be saved.';
+    showToast(apiOrder.message || 'Order payment could not be saved.');
+    return;
+  }
+
   const order = {
-    id: 'ORD-' + Date.now(),
+    backendId: apiOrder._id,
+    id: `ORD-${apiOrder._id}`,
     createdAt: new Date().toLocaleString(),
     total: state.cart.reduce((sum, item) => sum + item.price * item.quantity, 0),
-    items: state.cart.map(item => ({ name: item.name, quantity: item.quantity })),
+    items: state.cart.map(item => ({ productId: item._id, name: item.name, quantity: item.quantity, imageURL: item.imageURL })),
     delivery: {
       address: form.get('address'),
-      contact: form.get('contact')
+      contact: `${countryCode}${phone}`
     },
-    status: 'Confirmed'
+    status: apiOrder.status || 'pending'
   };
 
   state.orders = [order, ...state.orders];
@@ -309,25 +382,34 @@ async function placeOrder(event) {
   $('#cart-drawer').hidden = true;
   setView('orders');
   renderAll();
-  showToast('Order placed successfully.');
+  const confirmation = `Order confirmed. Payment saved for ${order.id}.`;
+  $('#orders-notification').textContent = confirmation;
+  $('#orders-notification').hidden = false;
+  showToast(confirmation);
+}
 
-  const mongoId = /^[a-f\d]{24}$/i;
-  const apiItems = state.token ? checkoutCart.filter(item => mongoId.test(item._id)) : [];
-
-  if (state.token && apiItems.length === order.items.length) {
-    fetch('/api/orders', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${state.token}`
-        },
-        body: JSON.stringify({
-          items: apiItems.map(item => ({ productId: item._id, quantity: item.quantity })),
-          delivery: order.delivery,
-          paymentResult: 'success'
-        })
-      }).catch(() => {});
+async function cancelOrder(order) {
+  if (!window.confirm(`Cancel ${order.id}?`)) return;
+  if (order.backendId && state.token) {
+    const response = await fetch(`/api/orders/${order.backendId}/cancel`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${state.token}` }
+    });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      showToast(data.message || 'Unable to cancel this order.');
+      return;
+    }
   }
+  order.status = 'Cancelled';
+  order.items.forEach(item => {
+    const product = state.products.find(entry => entry._id === item.productId);
+    if (product) product.stock += item.quantity;
+  });
+  saveOrders();
+  renderOrders();
+  renderProducts();
+  showToast('Order cancelled and inventory restored.');
 }
 
 function renderOrders() {
@@ -345,8 +427,13 @@ function renderOrders() {
       <h3>${order.id} - ${order.status}</h3>
       <p>${order.createdAt}</p>
       <p>${order.items.map(item => `${item.name} x ${item.quantity}`).join(', ')}</p>
-      <strong>${money(order.total)}</strong>
+      <div class="order-footer">
+        <strong>${money(order.total)}</strong>
+        ${['Confirmed', 'confirmed', 'Pending', 'pending'].includes(order.status) ? '<button class="secondary cancel-order" type="button">Cancel order</button>' : ''}
+      </div>
     `;
+    const cancelButton = node.querySelector('.cancel-order');
+    if (cancelButton) cancelButton.addEventListener('click', () => cancelOrder(order));
     list.append(node);
   });
 }
@@ -364,6 +451,7 @@ function setView(view) {
   });
   $('#cart-drawer').hidden = view !== 'cart';
   if (view === 'store') $('#catalog').scrollIntoView({ behavior: 'smooth' });
+  showToast(`${view.charAt(0).toUpperCase() + view.slice(1)} opened.`);
 }
 
 function renderAll() {
@@ -384,6 +472,7 @@ $('#logout').addEventListener('click', () => {
   state.token = '';
   state.user = null;
   showAuth();
+  showToast('You have been signed out.');
 });
 
 document.querySelectorAll('[data-view]').forEach(button => {
@@ -407,11 +496,31 @@ $('#clear-filters').addEventListener('click', () => {
   $('#stock-only').checked = false;
   $('#price-label').textContent = `Up to ${money(10000)}`;
   renderProducts();
+  showToast('Filters cleared.');
+});
+
+$('#product-image').addEventListener('change', event => {
+  const file = event.currentTarget.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.addEventListener('load', () => {
+    selectedImageData = String(reader.result);
+    $('#image-name').textContent = file.name;
+    $('#image-preview').src = selectedImageData;
+    $('#image-preview').hidden = false;
+    showToast(`${file.name} selected for upload.`);
+  });
+  reader.readAsDataURL(file);
 });
 
 $('#seller-form').addEventListener('submit', event => {
   event.preventDefault();
   const form = new FormData(event.currentTarget);
+  const imageURL = selectedImageData || form.get('imageURL');
+  if (!imageURL) {
+    showToast('Choose a product image or enter an image URL.');
+    return;
+  }
   state.products = [{
     _id: 'local-' + Date.now(),
     name: form.get('name'),
@@ -419,12 +528,16 @@ $('#seller-form').addEventListener('submit', event => {
     description: form.get('description'),
     price: Number(form.get('price')),
     stock: Number(form.get('stock')),
-    imageURL: form.get('imageURL')
+    imageURL
   }, ...state.products];
   event.currentTarget.reset();
+  selectedImageData = '';
+  $('#image-name').textContent = 'Choose an image from this PC';
+  $('#image-preview').hidden = true;
   updateCategories();
   setView('store');
   renderAll();
+  showToast(`${form.get('name')} added to inventory.`);
 });
 
 $('#checkout-form').addEventListener('submit', placeOrder);

@@ -37,7 +37,7 @@
             </label>
             <label class="field">
               <span>Email</span>
-              <input name="email" type="email" autocomplete="email" placeholder="you@example.com" required>
+              <input name="email" type="email" autocomplete="email" placeholder="you@example.com" pattern="^[^\s@]+@[^\s@]+\.[^\s@]+$" title="Enter a valid email address" required>
             </label>
             <label class="field">
               <span>Password</span>
@@ -114,6 +114,7 @@
                 <h2>Your orders</h2>
               </div>
             </div>
+            <p class="order-notification" id="orders-notification" role="status" aria-live="polite" hidden></p>
             <div class="list" id="orders-list"></div>
           </section>
 
@@ -129,7 +130,13 @@
               <input name="category" placeholder="Category" required>
               <input name="price" placeholder="Price" type="number" min="0" required>
               <input name="stock" placeholder="Stock" type="number" min="0" required>
-              <input name="imageURL" placeholder="Image URL" type="url" required>
+              <label class="image-upload" for="product-image">
+                <span>Product image</span>
+                <input id="product-image" name="imageFile" type="file" accept="image/*">
+                <small id="image-name">Choose an image from this PC</small>
+              </label>
+              <input name="imageURL" placeholder="Image URL (optional)" type="url">
+              <img class="image-preview" id="image-preview" alt="Selected product preview" hidden>
               <textarea name="description" placeholder="Description" required></textarea>
               <button class="primary" type="submit">Add product</button>
             </form>
@@ -159,7 +166,22 @@
           <div id="cart-items"></div>
           <form id="checkout-form" class="checkout">
             <label><span>Delivery address</span><input name="address" placeholder="Street, city, postcode" required></label>
-            <label><span>Contact</span><input name="contact" placeholder="Phone number" required></label>
+            <label class="contact-field">
+              <span>Phone number</span>
+              <div class="phone-input">
+                <select name="countryCode" aria-label="Country calling code" required>
+                  <option value="+91">India (+91)</option>
+                  <option value="+1">United States (+1)</option>
+                  <option value="+44">United Kingdom (+44)</option>
+                  <option value="+61">Australia (+61)</option>
+                  <option value="+971">United Arab Emirates (+971)</option>
+                  <option value="+65">Singapore (+65)</option>
+                  <option value="+49">Germany (+49)</option>
+                  <option value="+33">France (+33)</option>
+                </select>
+                <input name="phone" inputmode="numeric" autocomplete="tel-national" placeholder="9876543210" pattern="[0-9]{6,14}" minlength="6" maxlength="14" title="Enter 6 to 14 digits" required>
+              </div>
+            </label>
             <div class="total-row"><span>Total</span><strong id="cart-total">INR 0</strong></div>
             <button class="primary wide" type="submit">Place order</button>
             <p class="form-message" id="checkout-message" role="status"></p>
