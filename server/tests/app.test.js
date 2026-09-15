@@ -1,0 +1,1 @@
+process.env.JWT_SECRET='test-secret'; const request=require('supertest'); const app=require('../src/app'); describe('health',()=>it('reports ready',async()=>{await request(app).get('/health').expect(200,{ok:true})}));

@@ -1,0 +1,6 @@
+{
+  "name": "hype-marketplace",
+  "private": true,
+  "workspaces": ["server", "mobile"],
+  "scripts": { "dev:server": "npm run dev -w server", "dev:mobile": "npm start -w mobile", "test": "npm test -w server && npm test -w mobile" }
+}
