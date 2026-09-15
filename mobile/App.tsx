@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Alert, Animated, FlatList, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Chip, Provider as PaperProvider } from 'react-native-paper';
@@ -512,6 +513,22 @@ const Checkout = ({ total, success }: any) => {
 
 const Seller = ({ products, add, back }: any) => {
   const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [price, setPrice] = useState('999');
+  const [stock, setStock] = useState('5');
+  const [imageURL, setImageURL] = useState(featured[0].imageURL);
+
+  const pickImage = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets?.[0]?.uri) {
+      setImageURL(result.assets[0].uri);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.page}>
@@ -519,20 +536,37 @@ const Seller = ({ products, add, back }: any) => {
         <Text style={styles.pageTitle}>Seller inventory</Text>
         <Text style={styles.muted}>Live products · stock management</Text>
 
+        <View style={styles.sellerUploadCard}>
+          <Pressable onPress={pickImage} style={styles.uploadButton}>
+            <Text style={styles.uploadButtonText}>Choose image from device</Text>
+          </Pressable>
+          {imageURL ? <Image source={{ uri: imageURL }} style={styles.uploadPreview} /> : null}
+        </View>
+
         <TextInput style={styles.input} placeholder="New product name" value={name} onChangeText={setName} />
+        <TextInput style={styles.input} placeholder="Description" value={description} onChangeText={setDescription} multiline />
+        <View style={styles.inlineFields}>
+          <TextInput style={[styles.input, styles.inlineField]} placeholder="Price" value={price} onChangeText={setPrice} keyboardType="numeric" />
+          <TextInput style={[styles.input, styles.inlineField]} placeholder="Stock" value={stock} onChangeText={setStock} keyboardType="numeric" />
+        </View>
+
         <Button
           mode="contained"
           onPress={() => {
             if (name) {
               add({
                 name,
-                description: 'Fresh from your shop.',
+                description: description || 'Fresh from your shop.',
                 category: 'New',
-                price: 999,
-                stock: 5,
-                imageURL: featured[0].imageURL,
+                price: Number(price) || 999,
+                stock: Number(stock) || 5,
+                imageURL,
               });
               setName('');
+              setDescription('');
+              setPrice('999');
+              setStock('5');
+              setImageURL(featured[0].imageURL);
             }
           }}
           buttonColor="#6d28d9"
@@ -544,6 +578,7 @@ const Seller = ({ products, add, back }: any) => {
 
         {products.map((product: Product) => (
           <View style={styles.sellerItemCard} key={product._id}>
+            <Image source={{ uri: product.imageURL }} style={styles.sellerThumb} />
             <View style={styles.sellerItemInfo}>
               <Text style={styles.itemTitle}>{product.name}</Text>
               <Text style={styles.muted}>{product.stock} in stock</Text>
@@ -982,6 +1017,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#f0e8ff',
   },
+  sellerThumb: {
+    width: 54,
+    height: 54,
+    borderRadius: 12,
+    marginRight: 10,
+  },
   sellerItemInfo: {
     flex: 1,
     marginRight: 12,
@@ -990,6 +1031,38 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+  },
+  sellerUploadCard: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#efe3ff',
+    marginBottom: 12,
+  },
+  uploadButton: {
+    backgroundColor: '#f3ebff',
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  uploadButtonText: {
+    color: '#4c1d95',
+    fontWeight: '800',
+  },
+  uploadPreview: {
+    height: 160,
+    borderRadius: 16,
+    width: '100%',
+    backgroundColor: '#f5f0ff',
+  },
+  inlineFields: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  inlineField: {
+    flex: 1,
   },
   orderCard: {
     backgroundColor: '#ffffff',

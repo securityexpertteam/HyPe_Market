@@ -40,3 +40,36 @@ describe('order cancellation',()=>{
     expect(order.save).toHaveBeenCalled();
   });
 });
+
+describe('seller product upload',()=>{
+  afterEach(()=>jest.restoreAllMocks());
+
+  it('accepts local image file URIs when creating products', async () => {
+    const token = jwt.sign({ id: 'seller-1', role: 'seller', name: 'Seller' }, process.env.JWT_SECRET, { expiresIn: '1h' });
+    const createMock = jest.spyOn(Product, 'create').mockResolvedValue({
+      _id: 'p-1',
+      name: 'Local product',
+      description: 'Uploaded from disk',
+      category: 'Accessories',
+      price: 1234,
+      stock: 10,
+      imageURL: 'file:///Users/test/Desktop/local-image.png',
+      seller: 'seller-1',
+    });
+
+    await request(app)
+      .post('/api/products')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        name: 'Local product',
+        description: 'Uploaded from disk',
+        category: 'Accessories',
+        price: 1234,
+        stock: 10,
+        imageURL: 'file:///Users/test/Desktop/local-image.png',
+      })
+      .expect(201);
+
+    expect(createMock).toHaveBeenCalled();
+  });
+});
